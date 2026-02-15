@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e
+
+# Configurar permisos si es necesario
+chmod +x /usr/bin/escuela-domain-joiner
+
+# Asegurar que realmd pueda descubrir dominios
+# (Esto suele ser automático, pero no está de más reiniciar el servicio si existe)
+if systemctl is-active --quiet realmd; then
+    systemctl restart realmd
+fi
+
+echo "Instalación de Escuela Domain Joiner completada."
+exit 0

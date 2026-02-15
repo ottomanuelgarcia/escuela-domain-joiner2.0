@@ -1,0 +1,10 @@
+Package: escuela-domain-joiner
+Version: 1.0
+Section: admin
+Priority: optional
+Architecture: all
+Depends: python3, python3-tk, realmd, sssd, sssd-tools, adcli, krb5-user, packagekit, policykit-1
+Maintainer: Tu Nombre <admin@escuela.local>
+Description: Ferramenta gráfica para ingressar no domínio
+ Uma utilidade simples para ingressar computadores com Linux Mint no domínio
+ da escola Active Directory de maneira gráfica.
