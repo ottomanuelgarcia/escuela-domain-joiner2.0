@@ -1,10 +1,20 @@
 Package: escuela-domain-joiner
-Version: 1.0
+Version: 2.0
 Section: admin
 Priority: optional
 Architecture: all
-Depends: python3, python3-tk, realmd, sssd, sssd-tools, adcli, krb5-user, packagekit, policykit-1
-Maintainer: Tu Nombre <admin@escuela.local>
-Description: Ferramenta gráfica para ingressar no domínio
- Uma utilidade simples para ingressar computadores com Linux Mint no domínio
- da escola Active Directory de maneira gráfica.
+Depends: python3 (>= 3.8), python3-tk, python3-dnspython, python3-ldap3, realmd, sssd, sssd-tools, adcli, samba-common-bin, krb5-user, libpam-mount, cifs-utils, packagekit, policykit-1, libnss-winbind, libpam-winbind, lightdm (>= 1.26), dbus, systemd
+Maintainer: MSc. Otto Manuel Garcia Preval <ottomanuelgarcia@gmail.com>
+Description: Herramienta gráfica para untar computadores a dominio Active Directory
+ Uma ferramenta avanzada para ingressar computadores con Linux Mint al dominio
+ escolar Active Directory com UI mejorada, validación previa, gestión de OU,
+ configuración automática de login de dominio y opción de desunión.
+ .
+ Características:
+  * Detección automática de estado del dominio
+  * Validación previa con prueba de conexión DNS/Kerberos
+  * Soporte para Unidades Organizativas (OU) personalizadas
+  * Registro en tiempo real del proceso de unión
+  * Configuración automática de LightDM y PAM para login de usuarios de dominio
+  * Funcionalidad para desunir el equipo del dominio
+  * Interfaz gráfica intuitiva com soporte para scroll

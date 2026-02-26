@@ -1,0 +1,16 @@
+{
+    "builder.serverUrl": "",
+    "builder.command": "",
+    "builder.runDevServer": false,
+    "builder.autoDetectDevServer": true,
+    "builder.launchType": "editor",
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./DEBIAN",
+        "-p",
+        "*test.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": true
+}

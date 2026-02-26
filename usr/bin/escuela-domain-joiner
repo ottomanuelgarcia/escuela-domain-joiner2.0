@@ -31,7 +31,7 @@ class DomainJoinerApp:
         main_frame.pack(fill="both", expand=True)
 
         # Domain Input
-        tk.Label(main_frame, text="Nome do Domínio (ex. escola.local):", anchor="w").pack(fill="x")
+        tk.Label(main_frame, text="Nome do Domínio (ex. escisah.edu):", anchor="w").pack(fill="x")
         self.domain_entry = ttk.Entry(main_frame)
         self.domain_entry.pack(fill="x", pady=(0, 10))
 

@@ -1,14 +1,66 @@
 #!/bin/bash
 set -e
 
-# Configurar permisos si es necesario
+echo "Configurando Escuela Domain Joiner v2.0..."
+
+# Configurar permisos del ejecutable
+chmod +x /usr/bin/escuela-domain-joiner.py
 chmod +x /usr/bin/escuela-domain-joiner
 
-# Asegurar que realmd pueda descubrir dominios
-# (Esto suele ser automático, pero no está de más reiniciar el servicio si existe)
-if systemctl is-active --quiet realmd; then
-    systemctl restart realmd
+# Configurar permisos de la librería
+chmod -R 755 /usr/lib/escuela-domain-joiner
+chmod 644 /usr/lib/escuela-domain-joiner/*.py
+
+# Crear enlaces simbólicos si sea necesario
+if [ ! -f /usr/bin/escuela-domain-joiner ]; then
+    ln -s /usr/bin/escuela-domain-joiner.py /usr/bin/escuela-domain-joiner
 fi
 
-echo "Instalación de Escuela Domain Joiner completada."
+# Asegurar que realmd está disponible
+systemctl is-active --quiet realmd || systemctl restart realmd || true
+
+# Crear directorio de logs si no existe
+if [ ! -d /var/log ]; then
+    mkdir -p /var/log
+fi
+
+# Configurar permiso de logs
+touch /var/log/escuela-domain-joiner.log || true
+chmod 644 /var/log/escuela-domain-joiner.log
+
+# Crear directorio de estado/backup si no existe
+if [ ! -d /var/lib/escuela-domain-joiner ]; then
+    mkdir -p /var/lib/escuela-domain-joiner
+fi
+chmod 755 /var/lib/escuela-domain-joiner
+
+# Instalar documentación README en /usr/share/doc
+docdir="/usr/share/doc/escuela-domain-joiner"
+if [ ! -d "$docdir" ]; then
+    mkdir -p "$docdir"
+fi
+if [ -f "/usr/share/doc/escuela-domain-joiner/README.md" ]; then
+    # ya existe, no sobrescribir
+    :
+else
+    if [ -f "$PWD/usr/share/doc/escuela-domain-joiner/README.md" ]; then
+        cp "$PWD/usr/share/doc/escuela-domain-joiner/README.md" "$docdir/README.md" || true
+    elif [ -f "$PWD/README_TESTING.md" ]; then
+        cp "$PWD/README_TESTING.md" "$docdir/README.md" || true
+    fi
+fi
+chown -R root:root "$docdir" || true
+chmod 644 "$docdir/README.md" || true
+
+# habilitar servicio de verificación post-reinicio
+if command -v systemctl &>/dev/null; then
+    systemctl daemon-reload || true
+    systemctl enable edj-verify-domain.service || true
+fi
+
+# Registrar la instalación
+echo "$(date): Escuela Domain Joiner v2.0 instalado" >> /var/log/escuela-domain-joiner.log
+
+echo "✓ Instalación de Escuela Domain Joiner v2.0 completada exitosamente."
+echo "  Puede ejecutar: escuela-domain-joiner-py o usar el acceso directo del menú"
 exit 0

@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""Script que se ejecuta al iniciar para verificar unión al dominio."""
+import os
+import subprocess
+import sys
+import importlib.util
+import tkinter as tk
+from tkinter import messagebox
+
+PENDING_FILE = "/var/lib/escuela-domain-joiner/pending_verify"
+BACKUPS_DIR = "/var/lib/escuela-domain-joiner/backups"
+
+
+def find_latest_backup():
+    """Busca el archivo de backup más reciente."""
+    if not os.path.exists(BACKUPS_DIR):
+        return None
+    
+    backups = [f for f in os.listdir(BACKUPS_DIR) if f.startswith('prejoin_') and f.endswith('.tar.gz')]
+    if not backups:
+        return None
+    
+    # Ordenar por modificación más reciente
+    backups.sort(key=lambda x: os.path.getmtime(os.path.join(BACKUPS_DIR, x)), reverse=True)
+    return os.path.join(BACKUPS_DIR, backups[0])
+
+
+def perform_rollback(domain=None):
+    """Intenta restaurar la configuración anterior a la unión."""
+    try:
+        # Preferir usar el módulo backup_restore si está disponible
+        backup_mod = None
+        try:
+            import backup_restore as backup_mod
+        except Exception:
+            # Intentar cargar desde ubicación conocida
+            br_path = '/usr/lib/escuela-domain-joiner/backup_restore.py'
+            if not os.path.exists(br_path):
+                br_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib', 'escuela-domain-joiner', 'backup_restore.py'))
+            try:
+                spec = importlib.util.spec_from_file_location('backup_restore', br_path)
+                backup_mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(backup_mod)
+            except Exception:
+                backup_mod = None
+
+        if backup_mod:
+            backup_file = backup_mod.find_latest_backup()
+            if not backup_file:
+                messagebox.showerror("Rollback", "No se encontró backup para restaurar")
+                return False
+            try:
+                backup_mod.restore_original_config(backup_file)
+            except Exception as e:
+                messagebox.showerror("Rollback", f"Error restaurando backup: {e}")
+                # generar reporte si está disponible
+                try:
+                    backup_mod.generate_error_report(domain=domain, extra=str(e))
+                except Exception:
+                    pass
+                return False
+
+            # Desunir del dominio si se proporcionó
+            try:
+                if domain:
+                    backup_mod.leave_domain(domain)
+            except Exception:
+                pass
+
+            # Reiniciar servicios relevantes y verificar
+            try:
+                subprocess.run(['sudo', 'systemctl', 'restart', 'sssd'], timeout=30)
+                subprocess.run(['sudo', 'systemctl', 'restart', 'realmd'], timeout=30)
+            except Exception:
+                pass
+
+            # Verificar integridad y notificar
+            try:
+                integrity = backup_mod.verify_system_integrity()
+                messagebox.showinfo("Rollback", "Configuración anterior restaurada exitosamente")
+                return True
+            except Exception:
+                try:
+                    backup_mod.generate_error_report(domain=domain, extra='verify_system_integrity failed')
+                except Exception:
+                    pass
+                messagebox.showerror("Rollback", "Rollback completado pero hubo problemas verificando servicios")
+                return True
+        else:
+            # Fallback: comportamiento previo usando tar + realm
+            backup_file = find_latest_backup()
+            if not backup_file:
+                messagebox.showerror("Rollback", "No se encontró backup para restaurar")
+                return False
+            try:
+                subprocess.run(['sudo', 'tar', '-xzf', backup_file, '-C', '/'], 
+                             check=True, timeout=60)
+            except Exception as e:
+                messagebox.showerror("Rollback", f"Error restaurando backup: {e}")
+                return False
+            try:
+                subprocess.run(['sudo', 'realm', 'leave'], check=True, timeout=30)
+            except Exception as e:
+                messagebox.showerror("Rollback", f"Error abandonando dominio: {e}")
+                return False
+            try:
+                subprocess.run(['sudo', 'systemctl', 'restart', 'sssd'], timeout=30)
+                subprocess.run(['sudo', 'systemctl', 'restart', 'realmd'], timeout=30)
+            except Exception:
+                pass
+            messagebox.showinfo("Rollback", "Configuración anterior restaurada exitosamente")
+            return True
+    
+    except Exception as e:
+        messagebox.showerror("Error", f"Error durante rollback: {e}")
+        return False
+
+
+def main():
+    if not os.path.exists(PENDING_FILE):
+        return
+    
+    # Leer información del archivo
+    info = {}
+    try:
+        with open(PENDING_FILE) as f:
+            for line in f:
+                if '=' in line:
+                    k, v = line.strip().split('=', 1)
+                    info[k] = v
+    except Exception:
+        info = {"domain": "DOMINIO", "timestamp": "desconocido"}
+
+    domain = info.get('domain', 'DOMINIO')
+    # Mostrar dominio en forma esperada (mayúsculas) para el diálogo
+    try:
+        domain_display = domain.upper()
+    except Exception:
+        domain_display = domain
+    
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+
+    msg = (
+        "Verificación de Unión al Dominio\n\n"
+        f"✓ Equipo unido a: {domain_display}\n"
+        "✓ Servicios SSSD activos\n"
+        "✓ Configuración PAM aplicada\n\n"
+        "¿Pudo iniciar sesión exitosamente con un usuario de dominio?"
+    )
+
+    res = messagebox.askyesno("Verificación de Unión al Dominio", msg)
+    
+    if res:
+        # Éxito: borrar marcador, guardar plantilla y mostrar resumen final
+        try:
+            os.remove(PENDING_FILE)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo limpiar marcador: {e}")
+        # Intentar guardar plantilla de configuración
+        try:
+            try:
+                import backup_restore as backup_mod
+            except Exception:
+                br_path = '/usr/lib/escuela-domain-joiner/backup_restore.py'
+                if not os.path.exists(br_path):
+                    br_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib', 'escuela-domain-joiner', 'backup_restore.py'))
+                spec = importlib.util.spec_from_file_location('backup_restore', br_path)
+                backup_mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(backup_mod)
+            tpl = backup_mod.save_template(domain)
+            messagebox.showinfo("Éxito", f"✓ Inicio de sesión exitoso registrado!\nPlantilla guardada: {tpl}\nEl sistema está listo para usar.")
+        except Exception:
+            messagebox.showinfo("Éxito", "✓ Inicio de sesión exitoso registrado!\nEl sistema está listo para usar.")
+    else:
+        # Fallo: ofrecer rollback
+        rollback_msg = (
+            "Parece que hay problemas con la autenticación de dominio.\n\n"
+            "¿Desea deshacer la unión al dominio?"
+        )
+        
+        if messagebox.askyesno("Restaurar", rollback_msg):
+            messagebox.showinfo("Rollback", "Iniciando restauración de configuración...")
+            ok = perform_rollback(domain=domain)
+            if ok:
+                messagebox.showinfo("Completado", 
+                    "Sistema restaurado a estado anterior.\n"
+                    "Por favor, reinicie el equipo.")
+            else:
+                # Generar reporte de error si existe módulo
+                try:
+                    import backup_restore as backup_mod
+                    br = backup_mod.generate_error_report(domain=domain, extra='perform_rollback failed')
+                    messagebox.showerror("Error", f"Rollback falló. Se generó reporte: {br}")
+                except Exception:
+                    messagebox.showerror("Error", "Rollback falló y no se pudo generar reporte")
+        else:
+            messagebox.showwarning("Pendiente", 
+                "La unión al dominio sigue pendiente de verificación.\n"
+                "Contacte con su administrador de sistemas.")
+
+    root.destroy()
+
+
+if __name__ == '__main__':
+    main()
+

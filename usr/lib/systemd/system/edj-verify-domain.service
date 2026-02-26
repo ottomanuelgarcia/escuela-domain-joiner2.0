@@ -1,0 +1,11 @@
+[Unit]
+Description=Escuela Domain Joiner Post-boot Verification
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/edj-verify-domain
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

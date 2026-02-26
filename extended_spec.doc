@@ -1,0 +1,107 @@
+# Escuela Domain Joiner v2.0 - Mejoras y Especificaciones
+
+## RESUMEN EJECUTIVO
+
+Este documento detalla las mejoras propuestas para Escuela Domain Joiner v2.0, una herramienta gráfica profesional desarrollada en Python 3 con Tkinter para integrar equipos Linux Mint en dominios Active Directory educativos.
+
+Las mejoras se centran en tres áreas críticas:
+1. Auto-descubrimiento de dominios mediante botón de búsqueda
+2. Verificación post-reinicio de autenticación de dominio
+3. Configuración automática de acceso a recursos de red (home directories y shares)
+
+---
+
+## 1. MEJORA: BOTÓN "BUSCAR DOMINIO" (AUTO-DISCOVERY)
+
+### 1.1 Descripción Funcional
+
+**Ubicación en UI:** Al lado del campo "Nome do Domínio"
+
+**Comportamiento:**
+- Al hacer clic, escanea la red local buscando controladores de dominio
+- Detecta automáticamente el nombre del dominio disponible
+- Auto-completa el campo de texto con el dominio encontrado
+- Muestra indicador visual de estado (buscando/encontrado/no detectado)
+
+### 1.2 Métodos de Detección Implementados
+
+El sistema utiliza los siguientes métodos en orden de prioridad:
+
+| Prioridad | Método | Descripción | Comando Equivalente |
+|-----------|--------|-------------|---------------------|
+| 1 | DNS SRV | Consulta registros _ldap._tcp.dc._msdcs | `nslookup -type=SRV _ldap._tcp.dc._msdcs` |
+| 2 | Descubrimiento mDNS | Avahi/Zeroconf para servicios LDAP | `avahi-browse -a` |
+| 3 | NetBIOS | Broadcast en puertos 137/138 | `nmblookup -M -- -` |
+| 4 | Escaneo de puertos | Prueba puertos 389 (LDAP) y 445 (SMB) | `nc -zv 192.168.1.0/24 389` |
+
+### 1.3 Flujo de Usuario
+Usuario abre aplicación
+↓
+Campo "Nome do Domínio" vacío
+↓
+Usuario hace clic en [🔍 Buscar]
+↓
+Sistema muestra: "Buscando dominios en la red..."
+↓
+┌─────────────────────────────────────────┐
+│ ESCENARIO A: Dominio encontrado         │
+│ → Dropdown con opciones detectadas      │
+│ → Usuario selecciona uno                │
+│ → Campo se auto-completa                │
+│ → Mensaje: "Dominio detectado:          │
+│    escuela.local"                       │
+└─────────────────────────────────────────┘
+↓
+┌─────────────────────────────────────────┐
+│ ESCENARIO B: Múltiples dominios         │
+│ → Lista desplegable con todos           │
+│ → Usuario selecciona el correcto        │
+└─────────────────────────────────────────┘
+↓
+┌─────────────────────────────────────────┐
+│ ESCENARIO C: No detectado               │
+│ → Mensaje: "No se detectó dominio       │
+│    automáticamente"                     │
+│ → Habilitar entrada manual              │
+│ → Sugerir verificar:                    │
+│   * Conexión de red                     │
+│   * Configuración DNS                   │
+│   * Firewall                            │
+└─────────────────────────────────────────┘
+
+### 1.4 Especificación Técnica del Módulo
+
+**Archivo:** `usr/lib/escuela-domain-joiner/domain_discovery.py`
+
+```python
+class DomainDiscovery:
+    """
+    Módulo de descubrimiento automático de dominios Active Directory
+    """
+    
+    def __init__(self):
+        self.discovered_domains = []
+        self.timeout = 5  # segundos
+        
+    def discover_all(self):
+        """
+        Ejecuta todos los métodos de descubrimiento y consolida resultados
+        Retorna: list[dict] con {nombre, controlador, metodo_detectado, confiable}
+        """
+        pass
+        
+    def test_domain_connectivity(self, domain_name):
+        """
+        Verifica que el dominio detectado sea accesible
+        Prueba puertos: 88 (Kerberos), 389 (LDAP), 445 (SMB), 464 (kpasswd)
+        Retorna: dict con estado de cada puerto y latencia
+        """
+        pass
+        
+    def get_ous_from_domain(self, domain_name):
+        """
+        Consulta las Unidades Organizativas disponibles en el dominio
+        Retorna: list[str] con DN de cada OU
+        """
+        pass
+```

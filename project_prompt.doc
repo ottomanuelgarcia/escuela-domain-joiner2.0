@@ -1,0 +1,35 @@
+Escuela Domain Joiner v2.0
+
+DESCRIPCIÓN GENERAL DEL PROYECTO
+
+Escuela Domain Joiner v2.0 es una herramienta gráfica profesional desarrollada en Python 3 con Tkinter para facilitar la integración de equipos con Linux Mint en un dominio Active Directory escolar. Proporciona una interfaz intuitiva que automatiza procesos complejos de configuración de dominio, incluyendo validación previa, gestión de unidades organizativas y configuración post-unión para permitir login de usuarios de dominio.
+
+ARQUITECTURA DEL PROYECTO
+
+escuela-domain-joiner/
+├── DEBIAN/
+│   ├── control                          # Metadatos del paquete Debian
+│   └── postinst                         # Script de instalación post-paquete
+│
+├── usr/
+│   ├── bin/
+│   │   ├── escuela-domain-joiner.py     # Aplicación principal (executável)
+│   │   └── escuela-domain-joiner        # Enlace simbólico (existente)
+│   │
+│   ├── lib/escuela-domain-joiner/       # Librería modular
+│   │   ├── __init__.py                  # Metadatos del paquete
+│   │   ├── logger.py                    # Sistema de logging centralizado
+│   │   ├── domain_checker.py            # Validación y descubrimiento de dominios
+│   │   ├── domain_joiner.py             # Lógica de unión al dominio
+│   │   ├── domain_leaver.py             # Lógica de desunión del dominio
+│   │   └── lightdm_config.py            # Configuración de LightDM y PAM
+│   │
+│   └── share/
+│       ├── applications/
+│       │   └── escuela-domain-joiner.desktop  # Acceso directo del menú
+│       └── icons/hicolor/48x48/apps/
+│           └── escuela-domain-joiner.png      # Ícono de aplicación
+│
+└── .git/                                # Repositorio Git
+
+...
