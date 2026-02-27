@@ -6,6 +6,12 @@ echo "Configurando Escuela Domain Joiner v2.0..."
 # Configurar permisos del ejecutable
 chmod +x /usr/bin/escuela-domain-joiner.py
 chmod +x /usr/bin/escuela-domain-joiner
+# make diagnostic commands executable if they exist
+for cmd in edj-status edj-test-domain edj-remount-shares edj-diagnose; do
+    if [ -f "/usr/bin/$cmd" ]; then
+        chmod +x "/usr/bin/$cmd"
+    fi
+done
 
 # Configurar permisos de la librería
 chmod -R 755 /usr/lib/escuela-domain-joiner
@@ -35,6 +41,24 @@ fi
 chmod 755 /var/lib/escuela-domain-joiner
 
 # Instalar documentación README en /usr/share/doc
+
+# Instalar plantillas y ejemplos en /usr/share/escuela-domain-joiner
+sharebase="/usr/share/escuela-domain-joiner"
+for sub in templates examples; do
+    if [ ! -d "$sharebase/$sub" ]; then
+        mkdir -p "$sharebase/$sub"
+    fi
+    # copiar contenido si está disponible en el árbol de construcción
+    if [ -d "$PWD/usr/share/escuela-domain-joiner/$sub" ]; then
+        cp -r "$PWD/usr/share/escuela-domain-joiner/$sub"/* "$sharebase/$sub" 2>/dev/null || true
+    fi
+    chown -R root:root "$sharebase/$sub" || true
+    chmod -R 644 "$sharebase/$sub" || true
+    # directorios deben ser 755
+    find "$sharebase/$sub" -type d -exec chmod 755 {} \;
+done
+
+# Instalar documentación README en /usr/share/doc
 docdir="/usr/share/doc/escuela-domain-joiner"
 if [ ! -d "$docdir" ]; then
     mkdir -p "$docdir"
@@ -60,6 +84,9 @@ fi
 
 # Registrar la instalación
 echo "$(date): Escuela Domain Joiner v2.0 instalado" >> /var/log/escuela-domain-joiner.log
+# also write into dedicated install log
+mkdir -p /var/log/escuela-domain-joiner
+echo "$(date): instalado v2.0" >> /var/log/escuela-domain-joiner/install.log
 
 echo "✓ Instalación de Escuela Domain Joiner v2.0 completada exitosamente."
 echo "  Puede ejecutar: escuela-domain-joiner-py o usar el acceso directo del menú"

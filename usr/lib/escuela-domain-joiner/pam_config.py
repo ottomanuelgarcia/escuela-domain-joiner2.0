@@ -4,37 +4,75 @@ Configuración PAM para autenticación de dominio y montaje automático de share
 
 import os
 import subprocess
-from .logger import logger
+import shutil
+import tempfile
+import re
+try:
+    from .logger import logger
+except Exception:
+    # Fallback when module is loaded as a script during tests: load logger.py by path
+    import importlib.util
+    pkg_dir = os.path.dirname(__file__)
+    logger_path = os.path.join(pkg_dir, 'logger.py')
+    if os.path.exists(logger_path):
+        spec = importlib.util.spec_from_file_location('edj_logger', logger_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        logger = getattr(mod, 'logger', None)
+    else:
+        # Minimal logger fallback
+        import logging
+        logging.basicConfig()
+        logger = logging.getLogger('edj')
 
 
 class PAMConfigurator:
     """Configura PAM para AD y montaje de shares vía pam_mount"""
 
-    def __init__(self):
-        self.pam_mount_conf = '/etc/security/pam_mount.conf.xml'
-        self.common_session = '/etc/pam.d/common-session'
+    def __init__(self, pam_mount_conf='/etc/security/pam_mount.conf.xml', common_session='/etc/pam.d/common-session'):
+        self.pam_mount_conf = pam_mount_conf
+        self.common_session = common_session
 
     def enable_pam_mount(self):
         """Habilita pam_mount en common-session"""
         logger.info("Verificando configuración de pam_mount")
-        
         try:
             with open(self.common_session, 'r') as f:
                 content = f.read()
-            
-            if 'pam_mount.so' not in content:
-                # Agregar línea pam_mount antes de pam_unix.so
-                lines = content.split('\n')
-                new_lines = []
-                for line in lines:
-                    if 'pam_unix.so' in line and 'optional' not in line:
-                        new_lines.append('session optional        pam_mount.so')
-                    new_lines.append(line)
-                
-                new_content = '\n'.join(new_lines)
-                self._write_pam_file(self.common_session, new_content)
+
+            if 'pam_mount.so' in content:
+                logger.info("pam_mount ya presente en common-session")
+                return True
+
+            # Insertar antes de la primera línea pam_unix.so que no sea optional, usando regex
+            pattern = re.compile(r'^(.*pam_unix\.so.*)$', re.MULTILINE)
+            match = pattern.search(content)
+            if match:
+                # Construir nueva línea
+                insert_line = 'session optional        pam_mount.so'
+                # Insertar antes de la línea encontrada
+                start = match.start(1)
+                # Encontrar inicio de la línea
+                line_start = content.rfind('\n', 0, start) + 1
+                new_content = content[:line_start] + insert_line + '\n' + content[line_start:]
+            else:
+                # No se encontró pam_unix.so, añadir al final
+                new_content = content + '\n' + 'session optional        pam_mount.so\n'
+
+            # Respaldar
+            try:
+                backup_path = self.common_session + '.edj.bak'
+                shutil.copy2(self.common_session, backup_path)
+                logger.info(f"Backup creado: {backup_path}")
+            except Exception:
+                logger.warning("No se pudo crear backup de common-session")
+
+            if self._write_pam_file(self.common_session, new_content):
                 logger.info("pam_mount habilitado en common-session")
                 return True
+            else:
+                logger.error("Fallo al escribir common-session")
+                return False
         except Exception as e:
             logger.error(f"Error configurando PAM: {e}")
             return False
@@ -75,20 +113,32 @@ class PAMConfigurator:
 
     def _write_pam_file(self, filepath, content):
         """Escribe archivo PAM usando pkexec"""
-        import tempfile
-        
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
             f.write(content)
             temp_path = f.name
-        
+
         try:
+            # Si el destino es escribible por el usuario actual, usar replace directo
+            dest_dir = os.path.dirname(filepath) or '.'
+            if (not os.path.exists(filepath) and os.access(dest_dir, os.W_OK)) or (os.path.exists(filepath) and os.access(filepath, os.W_OK)):
+                try:
+                    os.replace(temp_path, filepath)
+                    os.chmod(filepath, 0o644)
+                    logger.info(f"Archivo escrito directamente: {filepath}")
+                    return True
+                except Exception as e:
+                    logger.warning(f"Escritura directa falló: {e}, intentando pkexec")
+
+            # Fallback a pkexec para entornos protegidos
             subprocess.run(['pkexec', 'cp', temp_path, filepath], check=True, timeout=10)
-            if filepath.endswith('.xml'):
-                subprocess.run(['pkexec', 'chmod', '644', filepath], check=True)
-            else:
-                subprocess.run(['pkexec', 'chmod', '644', filepath], check=True)
+            subprocess.run(['pkexec', 'chmod', '644', filepath], check=True)
+            return True
+        except Exception as e:
+            logger.error(f"Error escribiendo archivo PAM: {e}")
+            return False
         finally:
             try:
-                os.unlink(temp_path)
-            except:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+            except Exception:
                 pass

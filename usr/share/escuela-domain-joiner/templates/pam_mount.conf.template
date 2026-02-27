@@ -1,0 +1,3 @@
+<pam_mount>
+    <volume user="%{user}" fstype="cifs" server="%{server}" path="%{share}" mountpoint="/home/%{domain}/%{user}" />
+</pam_mount>

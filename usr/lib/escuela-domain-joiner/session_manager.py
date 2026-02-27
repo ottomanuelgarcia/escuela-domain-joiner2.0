@@ -4,7 +4,21 @@ Gestión de home directories con tres modalidades: Local, Remoto, Híbrido
 
 import os
 import subprocess
-from .logger import logger
+try:
+    from .logger import logger
+except Exception:
+    import importlib.util
+    pkg_dir = os.path.dirname(__file__)
+    logger_path = os.path.join(pkg_dir, 'logger.py')
+    if os.path.exists(logger_path):
+        spec = importlib.util.spec_from_file_location('edj_logger', logger_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        logger = getattr(mod, 'logger', None)
+    else:
+        import logging
+        logging.basicConfig()
+        logger = logging.getLogger('edj')
 
 
 class HomeDirectoryManager:

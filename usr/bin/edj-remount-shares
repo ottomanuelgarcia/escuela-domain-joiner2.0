@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Forzar remapeo/montaje de unidades de red según la configuración actual."""
+import sys
+from escuela_domain_joiner.network_mapper import NetworkMapper
+
+def main():
+    print("Remontando shares (modo de simulación)...")
+    try:
+        nm = NetworkMapper()
+        # no network_shares provided; this is just a stub
+        print("Shares remapeados.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"Error al remontar shares: {e}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

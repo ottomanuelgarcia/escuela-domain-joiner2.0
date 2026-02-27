@@ -2,7 +2,23 @@
 Mapeo automático de unidades de red según membresía de grupos Active Directory
 """
 
-from .logger import logger
+import os
+
+try:
+    from .logger import logger
+except Exception:
+    import importlib.util
+    pkg_dir = os.path.dirname(__file__)
+    logger_path = os.path.join(pkg_dir, 'logger.py')
+    if os.path.exists(logger_path):
+        spec = importlib.util.spec_from_file_location('edj_logger', logger_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        logger = getattr(mod, 'logger', None)
+    else:
+        import logging
+        logging.basicConfig()
+        logger = logging.getLogger('edj')
 
 
 class NetworkMapper:
@@ -94,17 +110,22 @@ class NetworkMapper:
         Returns:
             dict: {nombre_unidad: contenido}
         """
+        import hashlib
         mounts = {}
         for share in self.shares:
-            ruta = share['ruta'].replace('//', '').replace('//servidor/', '')
+            ruta = share['ruta'].lstrip('/')
             what = f"//{server}/{ruta}"
-            where = share['punto'].replace('~', '/etc/skel')  # O dinámico en runtime
-            unit_name = share['nombre'].lower().replace('_', '-')
-            
+            # Use %h placeholder so systemd can expand to the user's home at runtime
+            where = share['punto'].replace('~', '%h')
+
+            # Generate stable, safe unit name using hash of the target path
+            name_hash = hashlib.sha1(f"{what}:{where}".encode('utf-8')).hexdigest()[:12]
+            unit_name = f"edj-{name_hash}.mount"
+
             content = f"""[Unit]
-Description=Montaje de {share['nombre']}
-Requires=network-online.target
+Description=Montaje de {share['nombre']} ({what})
 After=network-online.target
+Wants=network-online.target
 
 [Mount]
 What={what}
@@ -115,6 +136,6 @@ Options=sec=krb5i,cruid=%U,iocharset=utf8,_netdev
 [Install]
 WantedBy=multi-user.target
 """
-            mounts[f"{unit_name}.mount"] = content
-        
+            mounts[unit_name] = content
+
         return mounts

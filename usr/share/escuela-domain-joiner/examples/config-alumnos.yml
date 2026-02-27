@@ -1,0 +1,5 @@
+realm: ESCUELA.LOCAL
+domain: escuela.local
+users:
+  - name: alumno1
+    groups: ["Alumnos"]

@@ -6,53 +6,64 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-LOG_FILE = "/var/log/escuela-domain-joiner.log"
+# log file paths for different purposes
+LOG_BASE = "/var/log/escuela-domain-joiner"
+LOG_FILE = LOG_BASE + "/escuela-domain-joiner.log"  # legacy/general
+LOG_INSTALL = LOG_BASE + "/install.log"
+LOG_AUTH = LOG_BASE + "/auth.log"
+LOG_ACCESS = LOG_BASE + "/access.log"
+LOG_ERRORS = LOG_BASE + "/errors.log"
+
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
 
 
-def setup_logger(name=__name__):
-    """
-    Configura el logger con rotación de archivos
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    
-    # Crear carpeta de logs si no existe
-    log_dir = os.path.dirname(LOG_FILE)
-    if log_dir and not os.path.exists(log_dir):
+def _ensure_log_dir():
+    """Create base log directory if missing."""
+    if not os.path.exists(LOG_BASE):
         try:
-            os.makedirs(log_dir, mode=0o755)
+            os.makedirs(LOG_BASE, mode=0o755)
         except Exception as e:
             print(f"Advertencia: No se pudo crear directorio de logs: {e}")
-            # Usar /tmp como fallback
-            LOG_FILE_ALT = "/tmp/escuela-domain-joiner.log"
-            handler = RotatingFileHandler(
-                LOG_FILE_ALT, 
-                maxBytes=5*1024*1024,  # 5MB
-                backupCount=3
-            )
-            handler.setFormatter(logging.Formatter(LOG_FORMAT))
-            logger.addHandler(handler)
-            return logger
-    
+
+
+def _make_handler(path, when='midnight', backupCount=30):
+    """Return a timed rotating file handler for given path."""
     try:
-        # Handler para archivo con rotación
         handler = RotatingFileHandler(
-            LOG_FILE, 
-            maxBytes=5*1024*1024,  # 5MB
+            path,
+            maxBytes=5*1024*1024,
             backupCount=3
         )
         handler.setFormatter(logging.Formatter(LOG_FORMAT))
-        logger.addHandler(handler)
+        return handler
     except Exception as e:
-        print(f"Advertencia: No se pudo configurar logging a archivo: {e}")
-    
-    # Handler para consola
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    logger.addHandler(console_handler)
-    
+        print(f"Advertencia: No se pudo configurar handler para {path}: {e}")
+        return None
+
+
+def setup_logger(name, filepath, when='midnight', backupCount=30):
+    """Create or retrieve a logger writing to **filepath** with rotation.
+
+    Parameters like ``when``/``backupCount`` are placeholders; rotation is
+    size-based by default but handlers may be replaced later.
+    """
+    _ensure_log_dir()
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    # avoid duplicate handlers
+    if not logger.handlers:
+        handler = _make_handler(filepath, when, backupCount)
+        if handler:
+            logger.addHandler(handler)
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        logger.addHandler(console_handler)
     return logger
 
 
-logger = setup_logger()
+# create loggers for various purposes
+logger = setup_logger('edj', LOG_FILE)
+install_logger = setup_logger('edj.install', LOG_INSTALL)
+auth_logger = setup_logger('edj.auth', LOG_AUTH)
+access_logger = setup_logger('edj.access', LOG_ACCESS)
+error_logger = setup_logger('edj.errors', LOG_ERRORS)

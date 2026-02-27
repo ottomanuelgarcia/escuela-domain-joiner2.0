@@ -1,0 +1,10 @@
+[libdefaults]
+    default_realm = %{REALM}
+    dns_lookup_realm = false
+    dns_lookup_kdc = true
+
+[realms]
+    %{REALM} = {
+        kdc = %{KDC}
+        admin_server = %{ADMIN_SERVER}
+    }

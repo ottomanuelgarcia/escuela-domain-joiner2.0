@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""Comprueba conectividad con el dominio especificado."""
+import sys
+import subprocess
+
+def main():
+    dom = 'escuela.local'
+    try:
+        result = subprocess.run(['ping', '-c', '1', dom], capture_output=True)
+        if result.returncode == 0:
+            print(f"Conectividad con {dom}: OK")
+            sys.exit(0)
+        else:
+            print(f"Conectividad con {dom}: falló")
+            sys.exit(2)
+    except Exception as e:
+        print(f"Error probando dominio: {e}")
+        sys.exit(3)
+
+if __name__ == '__main__':
+    main()

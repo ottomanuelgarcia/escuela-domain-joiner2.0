@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""Comando de diagnóstico: muestra estado de unión al dominio."""
+import sys
+from escuela_domain_joiner.post_join_verifier import PostJoinVerifier
+
+def main():
+    # hardcode domain/realm or read from config
+    domain = 'dom.local'
+    realm = 'DOM.LOCAL'
+    pv = PostJoinVerifier(domain, realm)
+    ok = pv.verify_domain_join()
+    if ok:
+        print(f"Dominio {domain} parece estar unido correctamente.")
+        sys.exit(0)
+    else:
+        print(f"Dominio {domain} NO parece estar unido.")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Genera un reporte de diagnóstico básico sobre el estado del sistema."""
+import sys
+import subprocess
+import datetime
+
+def main():
+    outpath = '/tmp/edj_diagnose.txt'
+    try:
+        with open(outpath, 'w') as f:
+            f.write(f"Reporte de diagnóstico {datetime.datetime.now()}\n")
+            f.write("\n-- estado de unión al dominio --\n")
+            try:
+                r = subprocess.run(['realm', 'list'], capture_output=True, text=True)
+                f.write(r.stdout + '\n')
+            except Exception as e:
+                f.write(f"realm list falló: {e}\n")
+            f.write("\n-- últimas entradas de log general --\n")
+            try:
+                with open('/var/log/escuela-domain-joiner/escuela-domain-joiner.log') as lf:
+                    lines = lf.readlines()[-10:]
+                    f.writelines(lines)
+            except Exception as e:
+                f.write(f"No se pudo leer log: {e}\n")
+        print(f"Diagnóstico generado en {outpath}")
+        sys.exit(0)
+    except Exception as e:
+        print(f"Error generando diagnóstico: {e}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
