@@ -42,42 +42,43 @@ class DomainLeaver:
         Returns:
             (éxito, mensaje)
         """
+        process = None
         try:
             self._log_output('info', f"Desuniendo del dominio: {domain}")
             
             cmd = ['pkexec', 'realm', 'leave', '--verbose', domain]
             
-            result = subprocess.run(
+            process = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
-                timeout=30
+                bufsize=1,
+                universal_newlines=True
             )
             
-            # Mostrar output línea por línea
-            if result.stdout:
-                for line in result.stdout.split('\n'):
-                    if line.strip():
+            output_lines = []
+            with process.stdout as stdout:
+                for line in stdout:
+                    line = line.rstrip('\n')
+                    if line:
+                        output_lines.append(line)
                         self._log_output('info', line)
+
+            returncode = process.wait()
             
-            if result.returncode == 0:
+            if returncode == 0:
                 self._log_output('success', f"✓ Desunión del dominio '{domain}' EXITOSA")
                 logger.info(f"realm leave completado exitosamente para: {domain}")
                 return True, domain
             else:
-                error_msg = result.stderr if result.stderr else result.stdout
+                error_msg = '\n'.join(output_lines)
                 if not error_msg:
-                    error_msg = f"Error desconocido (código: {result.returncode})"
+                    error_msg = f"Error desconocido (código: {returncode})"
                 
                 self._log_output('error', error_msg)
                 logger.error(f"realm leave falló para {domain}: {error_msg}")
                 return False, error_msg
-        
-        except subprocess.TimeoutExpired:
-            msg = "Timeout al intentar desunir del dominio (30s)"
-            self._log_output('error', msg)
-            logger.error(msg)
-            return False, msg
         
         except FileNotFoundError:
             msg = "Comando 'realm' o 'pkexec' no encontrado"
@@ -89,4 +90,6 @@ class DomainLeaver:
             msg = f"Error inesperado: {str(e)}"
             self._log_output('error', msg)
             logger.error(msg)
+            if process:
+                process.kill()
             return False, msg

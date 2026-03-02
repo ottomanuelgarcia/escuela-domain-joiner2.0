@@ -66,112 +66,50 @@ class LightDMConfigurator:
             return False, msg
     
     def _configure_lightdm(self):
-        """Configura archivos de LightDM"""
+        """Configura LightDM creando un archivo de anulación (override)."""
         try:
-            self._log_output('info', "Configurando LightDM...")
-            
-            lightdm_conf = "/etc/lightdm/lightdm.conf"
-            lightdm_gtk_conf = "/etc/lightdm/lightdm-gtk-greeter.conf"
-            
-            # Intentar configurar lightdm.conf
-            if os.path.exists(lightdm_conf):
+            self._log_output('info', "Configurando LightDM para inicio de sesión de dominio...")
+
+            override_dir = "/etc/lightdm/lightdm.conf.d"
+            override_file = os.path.join(override_dir, "60-escuela-domain-joiner.conf")
+
+            # Asegurarse de que el directorio de anulación exista
+            if not os.path.exists(override_dir):
                 try:
-                    self._update_lightdm_conf(lightdm_conf)
-                    self._log_output('info', "lightdm.conf actualizado")
+                    subprocess.run(
+                        ['pkexec', 'mkdir', '-p', override_dir],
+                        check=True,
+                        timeout=10
+                    )
+                    self._log_output('info', f"Directorio creado: {override_dir}")
                 except Exception as e:
-                    self._log_output('warning', f"No se pudo actualizar lightdm.conf: {e}")
+                    raise Exception(f"No se pudo crear el directorio {override_dir}: {e}")
+
+            # Contenido del archivo de anulación
+            # Habilita el login manual y deshabilita la sesión de invitado.
+            override_content = (
+                "[Seat:*]\n"
+                "greeter-show-manual-login=true\n"
+                "allow-guest=false\n"
+            )
+
+            self._write_file_with_sudo(override_file, override_content)
+            self._log_output('success', f"✓ Archivo de configuración de LightDM creado en {override_file}")
             
-            # Intentar configurar lightdm-gtk-greeter.conf
-            if os.path.exists(lightdm_gtk_conf):
-                try:
-                    self._update_lightdm_gtk_conf(lightdm_gtk_conf)
-                    self._log_output('info', "lightdm-gtk-greeter.conf actualizado")
-                except Exception as e:
-                    self._log_output('warning', f"No se pudo actualizar lightdm-gtk-greeter.conf: {e}")
-            
-            return True, "LightDM configurado"
-            
+            return True, "LightDM configurado correctamente mediante archivo de anulación."
+
         except Exception as e:
             return False, str(e)
     
     def _update_lightdm_conf(self, conf_file):
-        """Modifica lightdm.conf para permitir usuarios no listados"""
-        try:
-            with open(conf_file, 'r') as f:
-                content = f.read()
-            
-            # Backup
-            backup_file = conf_file + '.bak'
-            if not os.path.exists(backup_file):
-                shutil.copy2(conf_file, backup_file)
-            
-            # Realizar cambios
-            lines = content.split('\n')
-            new_lines = []
-            
-            allow_guest_found = False
-            manual_login_found = False
-            
-            for line in lines:
-                # Comentar allow-guest
-                if line.startswith('allow-guest'):
-                    if not line.strip().startswith('#'):
-                        new_lines.append('# ' + line)
-                        allow_guest_found = True
-                    else:
-                        new_lines.append(line)
-                # Asegurar greeter-show-manual-login
-                elif line.startswith('greeter-show-manual-login'):
-                    new_lines.append('greeter-show-manual-login=true')
-                    manual_login_found = True
-                else:
-                    new_lines.append(line)
-            
-            # Añadir si no existen
-            if not allow_guest_found:
-                new_lines.append('allow-guest=false')
-            if not manual_login_found:
-                new_lines.append('greeter-show-manual-login=true')
-            
-            # Escribir cambios con privilegios de root
-            new_content = '\n'.join(new_lines)
-            self._write_file_with_sudo(conf_file, new_content)
-            
-        except Exception as e:
-            raise Exception(f"Error actualizando {conf_file}: {e}")
-    
+        """Este método ya no es necesario y se deja por compatibilidad o referencia."""
+        self._log_output('info', "El método _update_lightdm_conf ya no se utiliza, la configuración se realiza mediante archivos de anulación.")
+        return
+
     def _update_lightdm_gtk_conf(self, conf_file):
-        """Modifica lightdm-gtk-greeter.conf"""
-        try:
-            with open(conf_file, 'r') as f:
-                content = f.read()
-            
-            # Backup
-            backup_file = conf_file + '.bak'
-            if not os.path.exists(backup_file):
-                shutil.copy2(conf_file, backup_file)
-            
-            # Realizar cambios
-            lines = content.split('\n')
-            new_lines = []
-            
-            show_manual_login_found = False
-            
-            for line in lines:
-                if line.startswith('show-manual-login'):
-                    new_lines.append('show-manual-login=true')
-                    show_manual_login_found = True
-                else:
-                    new_lines.append(line)
-            
-            if not show_manual_login_found:
-                new_lines.append('show-manual-login=true')
-            
-            new_content = '\n'.join(new_lines)
-            self._write_file_with_sudo(conf_file, new_content)
-            
-        except Exception as e:
-            raise Exception(f"Error actualizando {conf_file}: {e}")
+        """Este método ya no es necesario y se deja por compatibilidad o referencia."""
+        self._log_output('info', "El método _update_lightdm_gtk_conf ya no se utiliza.")
+        return
     
     def _configure_nsswitch(self):
         """Configura /etc/nsswitch.conf para SSSD"""

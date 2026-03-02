@@ -166,8 +166,8 @@ class DomainJoinerApp:
         # botón buscar dominio
         self.discovery_button = ttk.Button(
             domain_input_frame,
-            text="🔍 Buscar",
-            width=6,
+            text="🔍 BUSCAR AHORA",
+            width=18,
             command=self._search_domain
         )
         self.discovery_button.pack(side="left", padx=(0,5))
@@ -380,6 +380,7 @@ class DomainJoinerApp:
             self.show_pass_check.config(state="disabled")
             self.test_connection_button.config(state="disabled")
             self.join_button.config(state="disabled")
+            self.discovery_button.config(state="disabled")
 
             # Habilitar botón de desunión
             self.leave_button.config(state="normal")
@@ -401,6 +402,7 @@ class DomainJoinerApp:
             self.show_pass_check.config(state="normal")
             self.test_connection_button.config(state="normal")
             self.join_button.config(state="normal")
+            self.discovery_button.config(state="normal")
 
             # Deshabilitar botón de desunión
             self.leave_button.config(state="disabled")
