@@ -163,22 +163,13 @@ class DomainJoinerApp:
         self.domain_entry = ttk.Entry(domain_input_frame)
         self.domain_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
-        # botón buscar dominio
-        self.discovery_button = ttk.Button(
-            domain_input_frame,
-            text="🔍 BUSCAR AHORA",
-            width=18,
-            command=self._search_domain
-        )
-        self.discovery_button.pack(side="left", padx=(0,5))
-
         self.test_connection_button = ttk.Button(
             domain_input_frame,
             text="Probar Conexión",
             command=self._test_connection,
-            width=15
+            width=20
         )
-        self.test_connection_button.pack(side="left")
+        self.test_connection_button.pack(side="left", fill="x", expand=True)
 
         # Test result
         self.test_result_label = tk.Label(domain_frame, text="", fg="#27ae60", wraplength=450)
@@ -306,13 +297,23 @@ class DomainJoinerApp:
 
     def _create_credits_section(self, parent):
         """Crea la sección de créditos"""
+        
+        # Botón Buscar Dominio movido aquí arriba de los créditos
+        self.discovery_button = ttk.Button(
+            parent,
+            text="🔍 BUSCAR DOMINIO",
+            command=self._search_domain,
+            style="Accent.TButton" # Usando estilo si existe, o neutro
+        )
+        self.discovery_button.pack(fill="x", pady=(10, 5))
+
         credits_frame = tk.LabelFrame(parent, text="Sobre o Autor", padx=10, pady=10)
-        credits_frame.pack(fill="x", pady=(20, 0))
+        credits_frame.pack(fill="x", pady=(10, 0))
         
         credits_text = (
             "Este programa foi criado pelo MSc. Otto Manuel Garcia Preval.\n"
             "Versão 2.0 - Con mejoras de validación y gestión avanzada.\n"
-            "Você pode contatá-lo:\n"
+            "Você puede contatá-lo:\n"
             "Telefone: 948199810\n"
             "E-mail: ottomanuelgarcia@gmail.com"
         )
